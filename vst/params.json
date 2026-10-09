@@ -1,0 +1,875 @@
+{
+ "name": "DrumGen",
+ "params": [
+  {
+   "key": "style",
+   "name": "Style",
+   "min": 0,
+   "max": 15,
+   "default": 0,
+   "display": "string"
+  },
+  {
+   "key": "generate",
+   "name": "Generate",
+   "momentary": true
+  },
+  {
+   "key": "variate",
+   "name": "Variate",
+   "momentary": true
+  },
+  {
+   "key": "random",
+   "name": "Random",
+   "min": 0,
+   "max": 100,
+   "default": 0,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "swing",
+   "name": "Swing",
+   "min": 50,
+   "max": 75,
+   "default": 50,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "gate",
+   "name": "Gate",
+   "min": 5,
+   "max": 95,
+   "default": 50,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "auto",
+   "name": "Auto",
+   "options": [
+    "OFF",
+    "VAR 1",
+    "VAR 2",
+    "VAR 4",
+    "VAR 8",
+    "GEN 4",
+    "GEN 8",
+    "GEN 16"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "preset",
+   "name": "Preset",
+   "min": 1,
+   "max": 32,
+   "default": 1,
+   "display": "int"
+  },
+  {
+   "key": "preset_load",
+   "name": "Load",
+   "momentary": true
+  },
+  {
+   "key": "preset_save",
+   "name": "Save",
+   "momentary": true
+  },
+  {
+   "key": "cc_ch",
+   "name": "Control Ch",
+   "options": [
+    "OFF",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16"
+   ],
+   "default": "16"
+  },
+  {
+   "key": "status",
+   "name": "Status",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l1_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l1_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "NGEN"
+  },
+  {
+   "key": "l1_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 0,
+   "display": "string"
+  },
+  {
+   "key": "l1_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l1_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 32,
+   "display": "int"
+  },
+  {
+   "key": "l1_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 36,
+   "display": "int"
+  },
+  {
+   "key": "l1_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l1_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l1_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l1_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l2_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l2_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "NGEN"
+  },
+  {
+   "key": "l2_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 1,
+   "display": "string"
+  },
+  {
+   "key": "l2_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l2_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 32,
+   "display": "int"
+  },
+  {
+   "key": "l2_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 38,
+   "display": "int"
+  },
+  {
+   "key": "l2_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l2_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l2_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l2_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l3_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l3_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "NGEN"
+  },
+  {
+   "key": "l3_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 2,
+   "display": "string"
+  },
+  {
+   "key": "l3_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l3_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 32,
+   "display": "int"
+  },
+  {
+   "key": "l3_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 42,
+   "display": "int"
+  },
+  {
+   "key": "l3_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l3_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l3_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l3_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l4_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l4_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "NGEN"
+  },
+  {
+   "key": "l4_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 3,
+   "display": "string"
+  },
+  {
+   "key": "l4_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l4_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 32,
+   "display": "int"
+  },
+  {
+   "key": "l4_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 37,
+   "display": "int"
+  },
+  {
+   "key": "l4_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l4_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l4_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l4_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l5_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l5_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "BASIS"
+  },
+  {
+   "key": "l5_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 0,
+   "display": "string"
+  },
+  {
+   "key": "l5_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l5_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 16,
+   "display": "int"
+  },
+  {
+   "key": "l5_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 39,
+   "display": "int"
+  },
+  {
+   "key": "l5_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l5_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l5_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l5_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l6_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l6_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "BASIS"
+  },
+  {
+   "key": "l6_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 0,
+   "display": "string"
+  },
+  {
+   "key": "l6_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l6_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 16,
+   "display": "int"
+  },
+  {
+   "key": "l6_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 46,
+   "display": "int"
+  },
+  {
+   "key": "l6_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l6_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l6_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l6_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l7_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l7_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "BASIS"
+  },
+  {
+   "key": "l7_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 0,
+   "display": "string"
+  },
+  {
+   "key": "l7_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l7_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 16,
+   "display": "int"
+  },
+  {
+   "key": "l7_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 45,
+   "display": "int"
+  },
+  {
+   "key": "l7_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l7_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l7_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l7_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "l8_on",
+   "name": "On",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "ON"
+  },
+  {
+   "key": "l8_src",
+   "name": "Source",
+   "options": [
+    "NGEN",
+    "HOUSE",
+    "TECHNO",
+    "GARAGE",
+    "DNB",
+    "HIPHOP",
+    "TRAP",
+    "FUNK",
+    "SOUL",
+    "JAZZ",
+    "LATIN",
+    "REGGAE",
+    "ROCK",
+    "AFRO",
+    "WORLD",
+    "BASIS"
+   ],
+   "default": "BASIS"
+  },
+  {
+   "key": "l8_item",
+   "name": "Pattern",
+   "min": 0,
+   "max": 63,
+   "default": 0,
+   "display": "string"
+  },
+  {
+   "key": "l8_dens",
+   "name": "Density",
+   "min": 0,
+   "max": 200,
+   "default": 100,
+   "unit": "%",
+   "display": "int"
+  },
+  {
+   "key": "l8_len",
+   "name": "Length",
+   "min": 1,
+   "max": 32,
+   "default": 16,
+   "display": "int"
+  },
+  {
+   "key": "l8_note",
+   "name": "Note",
+   "min": 0,
+   "max": 127,
+   "default": 51,
+   "display": "int"
+  },
+  {
+   "key": "l8_ch",
+   "name": "Channel",
+   "min": 1,
+   "max": 16,
+   "default": 10,
+   "display": "int"
+  },
+  {
+   "key": "l8_lock",
+   "name": "Lock",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": "OFF"
+  },
+  {
+   "key": "l8_dice",
+   "name": "Dice",
+   "momentary": true
+  },
+  {
+   "key": "l8_pat",
+   "name": "Steps",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "readout"
+  }
+ ]
+}

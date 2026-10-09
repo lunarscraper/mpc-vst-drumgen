@@ -1,0 +1,11 @@
+{
+  "name": "DrumGen FX",
+  "vendor": "lunarscraper",
+  "uid": "DGfx",
+  "version": 1000,
+  "so": "drumgen_fx.so",
+  "effect": true,
+  "params": "../vst/params.json",
+  "layout": "../vst/layout.conf",
+  "_comment": "Insert-effect variant of ../vst (same drumgen_vst.cpp, parameters and skin): 'effect' makes gen_vst.py emit PLUG_EFFECT in params.h and a category=Effect plugin-list entry, so DrumGen loads as an insert and takes none of the 8 plugin instrument slots. Audio passes through untouched; notes go out through the plugin's own ALSA port 'DrumGen FX'."
+}
