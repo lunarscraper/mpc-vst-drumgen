@@ -40,6 +40,29 @@ for l in range(8):
         {"key": "l%d_dice" % n, "name": "Dice", "momentary": True},
         {"key": "l%d_pat" % n, "name": "Steps", "min": 0, "max": 1, "display": "string", "type": "readout"},
     ]
+# ---- MIDI FX (appended in 1.1.0; keep after the lanes: VST index order) ----
+FX_TARGETS = ["ALL", "1 KICK", "2 SNARE", "3 HAT", "4 PERC", "5 CLAP", "6 OPEN HAT", "7 TOM", "8 RIDE",
+              "1-4", "5-8", "ALL BUT 1", "2+5", "3+6"]
+params += [
+    {"key": "rmx_on", "name": "Remix", "options": ["OFF", "ON"], "default": "OFF"},
+    {"key": "rmx_mode", "name": "Mode", "options": ["NORMAL", "BREAK", "ROLL", "FILL"], "default": "NORMAL"},
+    {"key": "rmx_type", "name": "Type", "min": 1, "max": 16, "default": 1, "display": "int"},
+    {"key": "rmx_every", "name": "Every", "options": ["1 BAR", "2 BARS", "4 BARS", "8 BARS"], "default": "4 BARS"},
+    {"key": "rmx_target", "name": "Target", "options": FX_TARGETS, "default": "ALL"},
+    {"key": "echo_on", "name": "Echo", "options": ["OFF", "ON"], "default": "OFF"},
+    {"key": "echo_time", "name": "Time", "options": ["1/32", "1/16T", "1/16", "1/8T", "1/16D", "1/8", "1/4T", "1/8D", "1/4"],
+     "default": "1/8D"},
+    {"key": "echo_rep", "name": "Repeats", "min": 1, "max": 8, "default": 3, "display": "int"},
+    {"key": "echo_prob", "name": "Probability", "min": 0, "max": 100, "default": 100, "unit": "%", "display": "int"},
+    {"key": "echo_fall", "name": "Falloff", "min": 0, "max": 100, "default": 40, "unit": "%", "display": "int"},
+    {"key": "echo_target", "name": "Target", "options": FX_TARGETS, "default": "2+5"},
+    {"key": "gl_on", "name": "Glitch", "options": ["OFF", "ON"], "default": "OFF"},
+    {"key": "gl_rep", "name": "Repeats", "min": 2, "max": 8, "default": 4, "display": "int"},
+    {"key": "gl_gate", "name": "Gate", "min": 10, "max": 100, "default": 50, "unit": "%", "display": "int"},
+    {"key": "gl_prob", "name": "Probability", "min": 0, "max": 100, "default": 25, "unit": "%", "display": "int"},
+    {"key": "gl_rnd", "name": "Random", "min": 0, "max": 100, "default": 50, "unit": "%", "display": "int"},
+    {"key": "gl_target", "name": "Target", "options": FX_TARGETS, "default": "3+6"},
+]
 json.dump({"name": "DrumGen", "params": params}, open(os.path.join(HERE, "params.json"), "w"), indent=1)
 
 # ---- skin layout (shadow_page.conf syntax, see mpc-vst-plugins docs/SKIN_STUDIO.md) ----
@@ -109,6 +132,21 @@ for t, lanes in (("LANES 1-4", range(0, 4)), ("LANES 5-8", range(4, 8))):
     out.append('qlinks "%s" = %s' % (t.replace("LANES", "LN"), ",".join(
         "l%d_item,l%d_dens,l%d_len,l%d_note" % ((l + 1,) * 4) for l in lanes)))
 
+# FX tab: three columns REMIX / ECHO / GLITCH, each ON + TARGET on top, 2x2 knobs below
+out.append("[tab FX]")
+for k, (title, key_on, key_t, knobs) in enumerate((
+        ("REMIX", "rmx_on", "rmx_target", [("MODE", "rmx_mode"), ("TYPE", "rmx_type"), ("EVERY", "rmx_every")]),
+        ("ECHO", "echo_on", "echo_target", [("TIME", "echo_time"), ("REPEATS", "echo_rep"), ("PROBABILITY", "echo_prob"),
+                                            ("FALLOFF", "echo_fall")]),
+        ("GLITCH", "gl_on", "gl_target", [("REPEATS", "gl_rep"), ("GATE", "gl_gate"), ("PROBABILITY", "gl_prob"),
+                                          ("RANDOM", "gl_rnd")]))):
+    x = 36 + k * 406
+    out += ['frame x=%d y=88 w=395 h=624 title="-" caption="%s"' % (x, title),
+            'toggle cx=%d cy=190 label="ON" key=%s' % (x + 70, key_on),
+            'popup cx=%d cy=190 w=220 h=48 label="-" caption="TARGET" key=%s' % (x + 255, key_t)]
+    for j, (lab, key) in enumerate(knobs):
+        out.append('knob cx=%d cy=%d r=44 label="%s" key=%s' % (x + 110 + (j % 2) * 175, 360 + (j // 2) * 190, lab, key))
+out.append('qlinks "FX" = rmx_mode,rmx_type,rmx_every,echo_time,echo_rep,echo_prob,echo_fall,gl_rep,gl_gate,gl_prob,gl_rnd')
 out += ["[tab PRESETS]",
         'frame x=36 y=88 w=1207 h=624 title="-" caption="PRESETS"',
         'knob cx=200 cy=260 r=54 label="PRESET" key=preset',

@@ -86,13 +86,45 @@ Groove-Bank- und Basis-Spuren trotzdem; STATUS zeigt dann `No templates in vst/d
 |---|---|---|
 | MAIN | Style, Generate, Variate, Random, Swing, Gate, Auto, Status, alle 8 Patterns als Text | Style, Random, Swing, Gate, Density 1–8 |
 | LANES 1-4 / 5-8 | pro Spur: On, Source, Pattern, Density, Length, Note, Channel, Lock, Dice | Pattern, Density, Length, Note der vier Spuren |
+| FX | Remix, Echo, Glitch (siehe unten) | alle Effekt-Regler |
 | PRESETS | Preset 1–32, Load, Save, Control Ch, Status | Preset, Control Ch |
 
-Skin-Vorschau (ohne Live-Werte): `docs/skin-main.png`, `docs/skin-lanes.png`, `docs/skin-presets.png`.
+Skin-Vorschau (ohne Live-Werte): `docs/skin-main.png`, `docs/skin-lanes.png`, `docs/skin-fx.png`, `docs/skin-presets.png`.
 
 Die Pattern-Zeilen auf MAIN zeigen die Steps der jeweiligen Länge: `X` = 127, `x` = 80, `-` = 30,
 `.` = Pause, in Vierergruppen. Ein Step-Raster zum Antippen gibt es nicht, weil Plugin-Skins in MPC OS
 keine frei gezeichneten Elemente kennen (mpc-vst-plugins `docs/NOTES.md`).
+
+## MIDI-Effekte (Seite FX)
+
+Drei Effekte, die nur auf die **Ausgabe** wirken: die Patterns und die Zeilen auf MAIN bleiben
+unverändert, ausschalten bringt den Groove genau zurück. Jeder Effekt hat einen eigenen **ON**-Schalter
+und ein **TARGET**: alle Spuren, eine Spur, `1-4`, `5-8`, `ALL BUT 1` (alles außer Kick),
+`2+5` (Snare + Clap) oder `3+6` (beide Hats).
+
+**REMIX** nach Yamahas *Real Time Loop Remix* (RS7000, Motif/MOXF). Im jeweils letzten Takt von
+EVERY (1/2/4/8 Takte) wird der Takt umgebaut, wie Slices eines Loops; alle Ziel-Spuren gleich:
+
+| MODE | Wirkung |
+|---|---|
+| NORMAL | setzt Teile des Takts an andere Stellen (TYPE 1–4 Viertel, 5–8 Achtel, ab 9 Sechzehntel, ab 12 auch rückwärts) |
+| BREAK | schneidet Teile heraus, Stop-and-go (der erste Schlag bleibt immer) |
+| ROLL | macht einzelne Schläge zu Wirbeln mit Crescendo (2, 3 oder 4 Schläge pro 16tel) |
+| FILL | baut das Taktende zum Fill um, zurück zum Anfang (TYPE 1–4 letzter Schlag … 13–16 ganzer Takt) |
+
+TYPE 1–16 ist die Komplexität. Wie beim Yamaha ist das Ergebnis reproduzierbar: gleiche Einstellungen
+ergeben immer denselben Remix. STATUS zeigt `REMIX`, solange ein Takt umgebaut wird. FILL mit
+EVERY 4 oder 8 BARS ergibt einen automatischen Fill am Ende jeder Phrase.
+
+**ECHO** nach NGEN *Echoes*: MIDI-Delay im Tempo (TIME 1/32 bis 1/4, auch triolisch und
+punktiert), REPEATS 1–8, PROBABILITY (Anteil der Schläge mit Echo), FALLOFF (Velocity-Abnahme je
+Wiederholung).
+
+**GLITCH** nach NGEN *Glitch*: zufällige Ratchets. REPEATS (höchstens 2–8 Schläge pro Step),
+GATE (Länge der Ratchets), PROBABILITY, RANDOM (zufällige Anzahl und Velocity).
+
+Q-Links der Seite FX: alle Regler (Mode, Type, Every, Time, Repeats, Probability, Falloff, Gate,
+Random); Schalter und Ziele liegen nur auf dem Display.
 
 ## Steuerung per MIDI-CC (beide Varianten)
 
@@ -108,7 +140,11 @@ CC-Nummer = 10 × Spur + Funktion, also z. B. Spur 3 Density = CC 33:
 | Funktion | On | Source | Pattern | Density | Length | Note | Channel | Lock | Dice |
 
 Global: CC 100 Style, 101 Generate, 102 Variate, 103 Random, 104 Swing, 105 Gate, 106 Auto,
-107 Preset, 108 Load, 109 Save. Der Wertebereich 0–127 wird auf den Parameter verteilt; Schalter
+107 Preset, 108 Load, 109 Save.
+
+Effekte: CC 90 Remix On, 91 Mode, 92 Type, 93 Every, 94 Remix Target, 95 Echo On, 96 Time,
+97 Repeats, 98 Probability, 99 Falloff, 110 Echo Target, 111 Glitch On, 112 Repeats, 113 Gate,
+114 Probability, 115 Random, 116 Glitch Target. Der Wertebereich 0–127 wird auf den Parameter verteilt; Schalter
 schalten ab 64 ein, Tasten (Generate, Variate, Dice, Load, Save) lösen ab 64 aus. Ein Faderfox EC4
 mit acht Density-Reglern (CC 13, 23 … 83) ist damit ein direkter NGEN-Ersatz für die Hände.
 

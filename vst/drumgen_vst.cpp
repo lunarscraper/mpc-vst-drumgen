@@ -24,12 +24,24 @@
  * absolute pulse index (PpqClock, from euclidier_vst.cpp), so lanes sit on the MPC grid; swing
  * delays odd 16ths by up to 12 pulses (75 %).
  *
+ * MIDI FX (FX tab), applied on output only -- the lanes' steps and the pattern lines stay as they are:
+ *   REMIX   after Yamaha's Real Time Loop Remix (RS7000, Motif/MOXF): in the last bar of every 1/2/4/8
+ *           bars the bar is remixed; NORMAL repositions slices, BREAK cuts slices out (stop-action),
+ *           ROLL turns beats into crescendo rolls, FILL rebuilds the end of the bar into a fill. TYPE 1-16
+ *           = complexity; the result depends only on the settings (same settings, same remix).
+ *   ECHO    after NGEN's ECHOES: tempo-synced MIDI delay, repeats 1-8, probability, velocity falloff.
+ *   GLITCH  after NGEN's GLITCH: random ratchets (up to 8 per step), ratchet gate, probability, random.
+ *   Each has its own ON switch and TARGET (all lanes, one lane or a group).
+ *
  * CONTROL BY MIDI CC (Control In port, subscribed to every hardware input, + CCs sent to the track),
  * only on "Control Ch" (OFF, 1..16; default 16):
  *   CC 10*L + k, lane L = 1..8: k = 0 on, 1 source, 2 pattern, 3 density, 4 length, 5 note,
  *                                 6 channel, 7 lock, 8 dice (>= 64)
  *   CC 100 style, 101 generate, 102 variate, 103 random, 104 swing, 105 gate, 106 auto,
  *   CC 107 preset, 108 load, 109 save (buttons: value >= 64)
+ *   FX: CC 90 remix on, 91 mode, 92 type, 93 every, 94 target, 95 echo on, 96 time, 97 repeats,
+ *       98 probability, 99 falloff, 110 echo target, 111 glitch on, 112 repeats, 113 gate,
+ *       114 probability, 115 random, 116 glitch target
  *
  * TWO VARIANTS from this file (params.h decides, ../vst-fx/vst.json "effect": true):
  *   DrumGen     instrument (0 in / 2 out, silence) - uses one of the 8 plugin instrument slots
@@ -104,7 +116,7 @@ enum { audioMasterAutomate = 0, audioMasterGetTime = 7, audioMasterUpdateDisplay
 enum { kVstTransportPlaying = 1 << 1, kVstPpqPosValid = 1 << 9, kVstTempoValid = 1 << 10 };
 enum { effFlagsCanReplacing = 1 << 4, effFlagsProgramChunks = 1 << 5, effFlagsIsSynth = 1 << 8 };
 
-#define BUILD_ID "drumgen-1.0.0"
+#define BUILD_ID "drumgen-1.1.0"
 #ifdef PLUG_EFFECT
 #define PLUG_MODE "effect"
 #else
@@ -371,12 +383,20 @@ static int param_index(const char *key) {
 static int P_STYLE, P_GEN, P_VAR, P_RND, P_SWING, P_GATE, P_AUTO, P_PRESET, P_LOAD, P_SAVE, P_CCCH, P_STATUS;
 static int P_ON[NLANES], P_BANK[NLANES], P_ITEM[NLANES], P_DENS[NLANES], P_LEN[NLANES], P_NOTE[NLANES],
     P_CH[NLANES], P_LOCK[NLANES], P_DICE[NLANES], P_PAT[NLANES];
+static int P_RMX_ON, P_RMX_MODE, P_RMX_TYPE, P_RMX_EVERY, P_RMX_TGT, P_ECHO_ON, P_ECHO_TIME, P_ECHO_REP,
+    P_ECHO_PROB, P_ECHO_FALL, P_ECHO_TGT, P_GL_ON, P_GL_REP, P_GL_GATE, P_GL_PROB, P_GL_RND, P_GL_TGT;
 static std::once_flag g_idx_once;
 static void init_indices() {
     P_STYLE = param_index("style"); P_GEN = param_index("generate"); P_VAR = param_index("variate");
     P_RND = param_index("random"); P_SWING = param_index("swing"); P_GATE = param_index("gate");
     P_AUTO = param_index("auto"); P_PRESET = param_index("preset"); P_LOAD = param_index("preset_load");
     P_SAVE = param_index("preset_save"); P_CCCH = param_index("cc_ch"); P_STATUS = param_index("status");
+    P_RMX_ON = param_index("rmx_on"); P_RMX_MODE = param_index("rmx_mode"); P_RMX_TYPE = param_index("rmx_type");
+    P_RMX_EVERY = param_index("rmx_every"); P_RMX_TGT = param_index("rmx_target");
+    P_ECHO_ON = param_index("echo_on"); P_ECHO_TIME = param_index("echo_time"); P_ECHO_REP = param_index("echo_rep");
+    P_ECHO_PROB = param_index("echo_prob"); P_ECHO_FALL = param_index("echo_fall"); P_ECHO_TGT = param_index("echo_target");
+    P_GL_ON = param_index("gl_on"); P_GL_REP = param_index("gl_rep"); P_GL_GATE = param_index("gl_gate");
+    P_GL_PROB = param_index("gl_prob"); P_GL_RND = param_index("gl_rnd"); P_GL_TGT = param_index("gl_target");
     char k[24];
     for (int l = 0; l < NLANES; l++) {
 #define IDX(arr, suffix) std::snprintf(k, sizeof k, "l%d_" suffix, l + 1); arr[l] = param_index(k);
@@ -475,6 +495,10 @@ struct Plugin {
     double t_last_log = 0, last_ppq = 0, last_tempo = 0;
     char chunk[8192];
     char pat_txt[NLANES][48];
+    struct QEv { long long at; uint8_t st, d1, d2; };
+    QEv q[1024];                            /* FX notes between steps (ratchets, rolls, echoes) */
+    int qn = 0;
+    bool rmx_now = false;                   /* the current bar is being remixed (status line) */
 #ifndef NO_ALSA
     snd_seq_t *seq = nullptr;
     int port = -1, ctl_port = -1;
@@ -736,6 +760,11 @@ static int cc_param(int cc) {
     if (cc >= 10 && cc <= 89 && cc % 10 <= 8) return LANE[cc % 10][cc / 10 - 1];
     const int GLOB[10] = {P_STYLE, P_GEN, P_VAR, P_RND, P_SWING, P_GATE, P_AUTO, P_PRESET, P_LOAD, P_SAVE};
     if (cc >= 100 && cc <= 109) return GLOB[cc - 100];
+    const int FX1[10] = {P_RMX_ON, P_RMX_MODE, P_RMX_TYPE, P_RMX_EVERY, P_RMX_TGT, P_ECHO_ON, P_ECHO_TIME, P_ECHO_REP,
+                         P_ECHO_PROB, P_ECHO_FALL};
+    if (cc >= 90 && cc <= 99) return FX1[cc - 90];
+    const int FX2[7] = {P_ECHO_TGT, P_GL_ON, P_GL_REP, P_GL_GATE, P_GL_PROB, P_GL_RND, P_GL_TGT};
+    if (cc >= 110 && cc <= 116) return FX2[cc - 110];
     return -1;
 }
 static void apply_cc(Plugin *w, int ch, int cc, int val) {
@@ -760,7 +789,90 @@ static void note_off_lane(Plugin *w, int l) {
     midi_out(w, 0x80 | w->off_ch[l], w->off_note[l], 0);
     w->off_at[l] = -1;
 }
-static void all_off(Plugin *w) { for (int l = 0; l < NLANES; l++) note_off_lane(w, l); }
+/* FX event queue: notes at a later pulse (ratchets, rolls, echoes) */
+static void q_push(Plugin *w, long long at, int st, int d1, int d2) {
+    if (w->qn >= (int)(sizeof w->q / sizeof w->q[0])) return;
+    w->q[w->qn++] = {at, (uint8_t)st, (uint8_t)d1, (uint8_t)d2};
+}
+static void q_note(Plugin *w, long long at, int ch, int note, int vel, int gate) {
+    if (vel < 1) return;
+    q_push(w, at, 0x90 | ch, note, std::min(127, vel));
+    q_push(w, at + std::max(1, gate), 0x80 | ch, note, 0);
+}
+static void q_run(Plugin *w, long long idx) {   /* due note-offs first, then note-ons */
+    for (int pass = 0; pass < 2; pass++)
+        for (int i = 0; i < w->qn;) {
+            bool off = (w->q[i].st & 0xF0) == 0x80;
+            if (w->q[i].at <= idx && off == (pass == 0)) {
+                midi_out(w, w->q[i].st, w->q[i].d1, w->q[i].d2);
+                if (!off) w->notes++;
+                w->q[i] = w->q[--w->qn];
+            } else i++;
+        }
+}
+static void all_off(Plugin *w) {
+    for (int l = 0; l < NLANES; l++) note_off_lane(w, l);
+    for (int i = 0; i < w->qn; i++) if ((w->q[i].st & 0xF0) == 0x80) midi_out(w, w->q[i].st, w->q[i].d1, 0);
+    w->qn = 0;
+}
+
+/* FX targets (options order of rmx_target / echo_target / gl_target): lane bit masks */
+static const uint8_t TARGET_MASK[14] = {0xFF, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x0F, 0xF0, 0xFE, 0x12, 0x24};
+static bool targets(Plugin *w, int p_on, int p_tgt, int l) {
+    return ival(w, p_on) && (TARGET_MASK[std::min(13, ival(w, p_tgt))] >> l & 1);
+}
+/* deterministic [0,1) for the remix: same settings -> same result */
+static float rh(uint32_t a, uint32_t b, uint32_t c) {
+    uint32_t h = a * 0x9E3779B1u ^ b * 0x85EBCA77u ^ c * 0xC2B2AE3Du;
+    h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+    return (h >> 8) * (1.0f / 16777216.0f);
+}
+struct Remix { bool active; int src; int roll; float velmul; bool beat; };
+/* REMIX for one step of the bar (lane-independent: all target lanes are cut the same way, like slices
+ * of one loop). src = position in the bar to play instead (-1 = silent), roll = ratchets per step,
+ * beat = take the strongest hit of the step's beat (rolls run through the whole beat). */
+static Remix remix_at(Plugin *w, long long step) {
+    Remix r = {false, (int)(step % 16), 0, 1.0f, false};
+    if (!ival(w, P_RMX_ON)) return r;
+    static const int EVERY[4] = {1, 2, 4, 8};
+    int every = EVERY[std::min(3, ival(w, P_RMX_EVERY))];
+    long long bar = step / 16;
+    if (bar % every != every - 1) return r;
+    r.active = true;
+    int mode = ival(w, P_RMX_MODE), type = std::max(1, ival(w, P_RMX_TYPE)), pos = (int)(step % 16);
+    float cx = (type - 1) / 15.0f;                        /* complexity 0..1 */
+    uint32_t base = (uint32_t)(mode * 100 + type);
+    if (mode == 0) {                                      /* NORMAL: reposition slices */
+        int slice = type <= 4 ? 4 : type <= 8 ? 2 : 1, nsl = 16 / slice, k = pos / slice, in = pos % slice;
+        if (rh(base, k, 1) < 0.25f + 0.6f * cx) {
+            int src = std::min(nsl - 1, (int)(rh(base, k, 2) * nsl));
+            bool rev = type >= 12 && rh(base, k, 3) < 0.3f;
+            r.src = src * slice + (rev ? slice - 1 - in : in);
+        }
+    } else if (mode == 1) {                               /* BREAK: stop-action cuts, never the downbeat */
+        int slice = type <= 8 ? 2 : 1, k = pos / slice;
+        if (k > 0 && rh(base, k, 4) < 0.2f + 0.5f * cx) r.src = -1;
+    } else if (mode == 2) {                               /* ROLL: whole beats become crescendo rolls */
+        int beat = pos / 4;
+        if (rh(base, beat, 5) < 0.2f + 0.6f * cx) {
+            r.roll = type <= 6 ? 2 : type <= 11 ? 3 : 4;
+            r.velmul = 0.45f + 0.55f * ((pos % 4) + 1) / 4.0f;
+            r.beat = true;
+        }
+    } else {                                              /* FILL: the bar's end, leading back to the top */
+        int zone = 16 - 4 * ((type + 3) / 4);             /* type 1-4: last beat ... 13-16: whole bar */
+        if (pos >= zone) {
+            if (rh(base, pos, 6) < 0.6f) r.src = zone + std::min(15 - zone, (int)(rh(base, pos, 7) * (16 - zone)));
+            if (pos >= 12) {
+                r.roll = 2 + (type > 8) + (type > 12);
+                r.velmul = 0.5f + 0.5f * ((pos % 4) + 1) / 4.0f;
+                r.beat = true;
+            }
+        }
+    }
+    return r;
+}
+
 static void fire_step(Plugin *w, long long step, long long pulse) {
     /* auto variate / generate at a bar line */
     if (step % 16 == 0 && step > 0) {
@@ -769,25 +881,69 @@ static void fire_step(Plugin *w, long long step, long long pulse) {
         if (a > 0 && bar % BARS[a] == 0 && bar != w->last_auto_bar) { w->last_auto_bar = bar; generate(w, a <= 4 ? 0.25f : 1.0f); }
     }
     int gate = std::max(1, ival(w, P_GATE) * PPS / 100);
+    Remix rx = remix_at(w, step);
+    w->rmx_now = rx.active;
+    long long bar0 = step - step % 16;
+    static const int ECHO_T[9] = {12, 16, 24, 32, 36, 48, 64, 72, 96};   /* pulses at 96 per quarter */
     for (int l = 0; l < NLANES; l++) {
+        if (!ival(w, P_ON[l])) continue;
         int len = std::max(1, ival(w, P_LEN[l]));
         int v = w->steps[l][step % len];
-        if (!v || !ival(w, P_ON[l])) continue;
-        note_off_lane(w, l);
+        int ratchets = 1;
+        if (rx.active && targets(w, P_RMX_ON, P_RMX_TGT, l)) {
+            if (rx.src < 0) v = 0;
+            else if (rx.beat) {                           /* a roll runs through the beat if it has a hit */
+                long long b = bar0 + (rx.src / 4) * 4;
+                v = 0;
+                for (int k = 0; k < 4; k++) v = std::max(v, (int)w->steps[l][(b + k) % len]);
+            } else v = w->steps[l][(bar0 + rx.src) % len];
+            if (v) v = std::max(1, (int)std::lround(v * rx.velmul));
+            if (rx.roll > 1) ratchets = rx.roll;
+        }
+        if (!v) continue;
         int ch = (ival(w, P_CH[l]) - 1) & 15, note = ival(w, P_NOTE[l]) & 127;
-        midi_out(w, 0x90 | ch, note, v);
-        w->off_note[l] = note; w->off_ch[l] = ch; w->off_at[l] = pulse + gate;
-        w->notes++;
+        float vj = 0;                                     /* glitch velocity jitter */
+        if (ratchets == 1 && targets(w, P_GL_ON, P_GL_TGT, l) && (xr(w) % 100) < (uint32_t)ival(w, P_GL_PROB)) {
+            int maxr = std::max(2, ival(w, P_GL_REP));
+            float rnd = ival(w, P_GL_RND) / 100.0f;
+            ratchets = ((xr(w) % 1000) < (uint32_t)(rnd * 1000)) ? 2 + (int)(xr(w) % (uint32_t)(maxr - 1)) : maxr;
+            vj = rnd * 0.4f;
+        }
+        note_off_lane(w, l);
+        if (ratchets > 1) {                               /* ratchets / roll: all hits through the queue */
+            int sp = std::max(1, PPS / ratchets);
+            int g = rx.roll > 1 ? std::max(1, sp / 2) : std::max(1, sp * ival(w, P_GL_GATE) / 100);
+            for (int k = 0; k < ratchets; k++) {
+                int vk = v;
+                if (vj > 0) vk = (int)std::lround(v * (1.0f - vj * (xr(w) % 1000) / 1000.0f));
+                q_note(w, pulse + (long long)k * sp, ch, note, std::max(1, vk), g);
+            }
+        } else {
+            midi_out(w, 0x90 | ch, note, v);
+            w->off_note[l] = note; w->off_ch[l] = ch; w->off_at[l] = pulse + gate;
+            w->notes++;
+        }
+        if (targets(w, P_ECHO_ON, P_ECHO_TGT, l) && (xr(w) % 100) < (uint32_t)ival(w, P_ECHO_PROB)) {
+            int t = ECHO_T[std::min(8, ival(w, P_ECHO_TIME))], reps = std::max(1, ival(w, P_ECHO_REP));
+            float keep = 1.0f - ival(w, P_ECHO_FALL) / 100.0f, ev = (float)v;
+            for (int k = 1; k <= reps; k++) {
+                ev *= keep;
+                if (ev < 1.0f) break;
+                q_note(w, pulse + (long long)k * t, ch, note, (int)std::lround(ev), std::max(1, std::min(t / 2, gate)));
+            }
+        }
     }
     w->last_step = step;
 }
 static void run_pulse(Plugin *w, long long idx) {
     for (int l = 0; l < NLANES; l++) if (w->off_at[l] >= 0 && idx >= w->off_at[l]) note_off_lane(w, l);
+    q_run(w, idx);
     if (idx < 0) return;                                   /* pre-roll before bar 1 */
     int sw = (int)std::lround((ival(w, P_SWING) - 50) * PPS / 50.0);   /* 0..12 pulses */
     if (idx % PPS == 0 && (idx / PPS) % 2 == 0) fire_step(w, idx / PPS, idx);
     long long o = idx - sw;
     if (o >= 0 && o % PPS == 0 && (o / PPS) % 2 == 1) fire_step(w, o / PPS, idx);
+    q_run(w, idx);                                         /* this pulse's own ratchet/roll hits */
 }
 
 static void processReplacing(AEffect *e, float **in, float **out, int32_t n) {
@@ -887,7 +1043,8 @@ static void param_display(Plugin *w, int i, char *dst) {
         long long st = w->last_step;
         if (!g_ntpl) std::snprintf(buf, sizeof buf, "No templates in vst/drumgen");
         else if (st < 0) std::snprintf(buf, sizeof buf, "%d templates - stopped", g_ntpl);
-        else std::snprintf(buf, sizeof buf, "Bar %lld . %lld  |  Step %lld", st / 16 + 1, (st % 16) / 4 + 1, st % 32 + 1);
+        else std::snprintf(buf, sizeof buf, "Bar %lld . %lld  |  Step %lld%s", st / 16 + 1, (st % 16) / 4 + 1, st % 32 + 1,
+                           w->rmx_now ? "  |  REMIX" : "");
         copy_str(dst, buf, 48); return;
     }
     for (int l = 0; l < NLANES; l++) if (i == P_PAT[l]) { copy_str(dst, w->pat_txt[l], 48); return; }

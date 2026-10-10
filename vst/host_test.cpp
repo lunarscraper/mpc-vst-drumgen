@@ -328,6 +328,79 @@ int main(int argc, char **argv) {
         CHECK(f && std::fgets(line, sizeof line, f) && !std::strncmp(line, "3:v=1;", 6), "bank file has slot 3: %s", line);
         if (f) std::fclose(f);
     }
+    /* ---- MIDI FX ---- */
+    if (!std::strcmp(mode, "fixture")) {   /* exact counts rely on the fixture's fixed weights */
+        int rmx = find(a, "Remix"), rmode = find(a, "Mode"), rtype = find(a, "Type"), revery = find(a, "Every"),
+            echo = find(a, "Echo"), etime = find(a, "Time"), erep = find(a, "Repeats", 0), eprob = find(a, "Probability", 0),
+            efall = find(a, "Falloff"), glitch = find(a, "Glitch"), grep_ = find(a, "Repeats", 1), gprob = find(a, "Probability", 1),
+            grnd = find(a, "Random", 1), rtgt = find(a, "Target", 0), etgt = find(a, "Target", 1), gtgt = find(a, "Target", 2);
+        CHECK(rmx >= 0 && rmode >= 0 && rtype >= 0 && revery >= 0 && echo >= 0 && etime >= 0 && erep >= 0 && eprob >= 0 &&
+              efall >= 0 && glitch >= 0 && grep_ >= 0 && gprob >= 0 && grnd >= 0 && rtgt >= 0 && etgt >= 0 && gtgt >= 0, "FX params");
+        CHECK(disp(a, rmx) == "OFF" && disp(a, echo) == "OFF" && disp(a, glitch) == "OFF", "FX off by default");
+        a->setParameter(a, cch, 0.0f);
+        set_int(a, style, 10, 0, 15);                           /* TECHNO fixture, all lanes fresh */
+        set_int(a, swing, 50, 50, 75);
+        auto only = [&](int lane) { for (int l = 0; l < 8; l++) a->setParameter(a, on[l], l == lane ? 1.0f : 0.0f); };
+        auto count = [&](const std::vector<Ev> &ev, int n, std::map<int, int> *vels = nullptr) {
+            int c = 0; for (auto &x : ev) if ((x.st & 0xF0) == 0x90 && x.v && x.n == n) { c++; if (vels) (*vels)[x.v]++; } return c; };
+        auto hanging = [&](const std::vector<Ev> &ev) {
+            std::map<int, int> h; for (auto &x : ev) { int k = (x.st & 15) * 128 + x.n; if ((x.st & 0xF0) == 0x90 && x.v) h[k]++; else h[k] = 0; }
+            int n = 0; for (auto &kv : h) n += kv.second > 0; return n; };
+        auto opt = [&](int i, int o, int n) { a->setParameter(a, i, (float)o / (n - 1)); };
+        /* ECHO: snare backbeat (steps 4, 12, 20, 28), 1/8 = 48 pulses, 3 repeats, falloff 40 % */
+        only(1);
+        opt(echo, 1, 2); opt(etgt, 2, 14); opt(etime, 5, 9); set_int(a, erep, 3, 1, 8); set_int(a, eprob, 100, 0, 100);
+        set_int(a, efall, 40, 0, 100);
+        std::map<int, int> vel;
+        std::vector<Ev> ev = play(a, 1378);
+        int n38 = count(ev, 38, &vel);
+        std::printf("echo: %d snare note-ons in 2 bars (vel 127 x%d, 76 x%d, 46 x%d, 27 x%d)\n", n38, vel[127], vel[76], vel[46], vel[27]);
+        CHECK(n38 == 14 && vel[127] == 4 && vel[76] == 4 && vel[46] == 3 && vel[27] == 3, "echo count/falloff: %d", n38);
+        CHECK(hanging(ev) == 0, "echo leaves no hanging notes");
+        opt(etgt, 1, 14);                                       /* target KICK: snare dry again */
+        CHECK(count(play(a, 1378), 38) == 4, "echo target excludes snare");
+        opt(echo, 0, 2);
+        /* GLITCH: hat at density 200 hits every step; prob 100, 4 ratchets, random 0 -> 4 per step */
+        only(2);
+        set_int(a, dens[2], 200, 0, 200);
+        opt(glitch, 1, 2); opt(gtgt, 3, 14); set_int(a, grep_, 4, 2, 8); set_int(a, gprob, 100, 0, 100); set_int(a, grnd, 0, 0, 100);
+        ev = play(a, 1378);
+        std::printf("glitch: %d hat note-ons in 2 bars\n", count(ev, 42));
+        CHECK(count(ev, 42) == 128, "glitch 4 ratchets per step: %d", count(ev, 42));
+        CHECK(hanging(ev) == 0, "glitch leaves no hanging notes");
+        set_int(a, gprob, 0, 0, 100);
+        CHECK(count(play(a, 1378), 42) == 32, "glitch prob 0 -> plain hats");
+        opt(glitch, 0, 2);
+        /* REMIX: hat on every step; every 2 bars -> bar 1 untouched, bar 2 remixed */
+        opt(rmx, 1, 2); opt(rtgt, 0, 14); opt(revery, 1, 4);
+        opt(rmode, 1, 4); set_int(a, rtype, 16, 1, 16);         /* BREAK 16: cuts */
+        ev = play(a, 1378);
+        int c1 = 0, c2 = 0;
+        for (auto &x : ev) if ((x.st & 0xF0) == 0x90 && x.v && x.n == 42) (x.block < 689 ? c1 : c2)++;
+        std::printf("remix break: bar 1 %d, bar 2 %d hats\n", c1, c2);
+        CHECK(c1 == 16 && c2 > 0 && c2 < 16, "break cuts only the remix bar: %d / %d", c1, c2);
+        CHECK(count(play(a, 1378), 42) == c1 + c2, "remix is repeatable (same settings, same result)");
+        opt(rmode, 2, 4);                                       /* ROLL 16: rolls add hits */
+        ev = play(a, 1378);
+        std::printf("remix roll: %d hats\n", count(ev, 42));
+        CHECK(count(ev, 42) > 32 && hanging(ev) == 0, "roll adds hits: %d", count(ev, 42));
+        opt(rmode, 3, 4); set_int(a, rtype, 1, 1, 16);          /* FILL 1: last beat rolls */
+        ev = play(a, 1378);
+        CHECK(count(ev, 42) == 32 - 4 + 4 * 2, "fill type 1 = last beat as 2-step roll: %d", count(ev, 42));
+        opt(rmode, 0, 4); set_int(a, rtype, 16, 1, 16);         /* NORMAL: hats everywhere -> count unchanged */
+        CHECK(count(play(a, 1378), 42) == 32, "normal repositions without adding or losing hits on a full lane");
+        opt(rmx, 0, 2);
+        /* FX settings are part of the project */
+        opt(echo, 1, 2);
+        void *ck = nullptr;
+        intptr_t n = a->dispatcher(a, 23, 0, 0, &ck, 0);
+        CHECK(n > 0 && std::strstr((char *)ck, "echo_on=1;") && std::strstr((char *)ck, "rmx_type=16;"), "chunk has FX settings");
+        /* CC 95 echo on/off */
+        a->setParameter(a, cch, 1.0f);
+        cc(a, 16, 95, 0);
+        CHECK(disp(a, echo) == "OFF", "CC 95 switches echo off");
+        for (int l = 0; l < 8; l++) a->setParameter(a, on[l], 1.0f);
+    }
     a->dispatcher(a, 1, 0, 0, nullptr, 0);
     b->dispatcher(b, 1, 0, 0, nullptr, 0);
     std::printf(fails ? "FAILED\n" : "PASSED\n");
